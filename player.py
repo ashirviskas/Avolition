@@ -861,7 +861,8 @@ class PC1(DirectObject):
     def __getTrackerPos(self, task):
         # Get last element from queue
         ef = GazeInterface.getLastFrame(self._tracker)
-        gazePos = GazeInterface.frameToPoint2(ef)
+        gazePos1 = GazeInterface.frameToPoint2(ef)
+        gazePos = GazeInterface.reduceNoise(gazePos1)
 
         pos3d = Point3()
         nearPoint = Point3()

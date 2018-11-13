@@ -1,8 +1,34 @@
 from peyetribe import EyeTribe
 from panda3d.core import *
+from one_euro_filter import OneEuroFilter
+import time
 
+class GazeInterface:
 
-class GazeInterface():
+    __filterConfig  = {
+        'freq': 120,        # Hz
+        'mincutoff': 0.2,   # Decreasing reduces jitter but increases lag. Select for slow movement
+        'beta': 0.5,        # Increase to reduce high speed lag
+        'dcutoff': 1.0      # this one should be ok
+    }
+    __oneEuroFilterX = None
+    __oneEuroFilterY = None
+
+    @staticmethod
+    def __getFilter(new = False):
+        if new == True or GazeInterface.__oneEuroFilterX is None:
+            GazeInterface.__oneEuroFilterX = OneEuroFilter(**GazeInterface.__filterConfig)
+            GazeInterface.__oneEuroFilterY = OneEuroFilter(**GazeInterface.__filterConfig)
+        return (GazeInterface.__oneEuroFilterX, GazeInterface.__oneEuroFilterY)
+
+    @staticmethod
+    def reduceNoise(point):
+        (fx, fy) = GazeInterface.__getFilter()
+        timestamp = time.time()
+        x = fx(point[0], timestamp)
+        y = fy(point[1], timestamp)
+
+        return Point2(x, y)
 
     @staticmethod
     def frameToPoint2(frame):
@@ -24,3 +50,4 @@ class GazeInterface():
             ef = tracker.next()
         ef = tracker.next(True)
         return ef
+
