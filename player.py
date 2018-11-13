@@ -26,7 +26,7 @@ from vfx import MovingVfx
 import random
 from direct.showbase.PythonUtil import fitSrcAngle2Dest
 from peyetribe import EyeTribe
-import time
+from gaze_interface import GazeInterface
 
 class PC1(DirectObject):
 
@@ -858,24 +858,11 @@ class PC1(DirectObject):
             self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
         return task.again
 
-
-    @staticmethod
-    def __trackerPosToPoint2(trackerPoint):
-        width = 1920
-        height = 1080
-
-        x = 0 if trackerPoint.avg.x < 0 else width if trackerPoint.avg.x > width else trackerPoint.avg.x
-        y = 0 if trackerPoint.avg.y < 0 else height if trackerPoint.avg.y > height else trackerPoint.avg.y
-
-        normalized_x = 2 * (x / width) - 1
-        normalized_y = -1 * (2 * (y / height) - 1)
-
-        return Point2(normalized_x, normalized_y)
-
     def __getTrackerPos(self, task):
-        n = self._tracker.next()
-        gazePos = PC1.__trackerPosToPoint2(n)
-        print("X:", n.avg.x, "Y:", n.avg.y, "XnYn:", gazePos[0], gazePos[1])
+        # Get last element from queue
+        ef = GazeInterface.getLastFrame(self._tracker)
+        gazePos = GazeInterface.frameToPoint2(ef)
+
         pos3d = Point3()
         nearPoint = Point3()
         farPoint = Point3()
