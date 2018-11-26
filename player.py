@@ -78,6 +78,9 @@ class PC1(DirectObject):
             #base.bufferViewer.setCardSize(.5, 0.0)
 
     def __init__(self, common):
+        self.right_open = False
+        self.left_open = False
+        self.GAI = GazeInterface()
         self.common=common
         self.black=common['map_black']
         self.walls=common['map_walls']
@@ -657,7 +660,8 @@ class PC1(DirectObject):
             return task.done
         if self.isBlockin:
             return task.again
-        if self.keyMap["key_action1"]:
+        # if self.keyMap["key_action1"]:
+        if not self.right_open:
             if self.powerUp>=15:
                return task.again
             self.powerUp+=1
@@ -690,7 +694,8 @@ class PC1(DirectObject):
     def shield_task(self, task):
         if self.HP<=0:
             return task.done
-        if self.keyMap["key_action2"]:
+        # if self.keyMap["key_action2"]:
+        if not self.left_open:
             if self.shieldUp>=15:
                 #self.isBlockin=False
                 Sequence(Wait(0.3), Func(self.unBlock)).start()
@@ -860,7 +865,11 @@ class PC1(DirectObject):
 
     def __getTrackerPos(self, task):
         # Get last element from queue
-        ef = GazeInterface.getLastFrame(self._tracker)
+        ef = self.GAI.getLastFrame(self._tracker)
+        # right_eye_open = False
+        self.right_open = not (ef.righteye.psize < 0.1)
+        self.left_open = not (ef.lefteye.psize < 0.1)
+
         gazePos1 = GazeInterface.frameToPoint2(ef)
         gazePos = GazeInterface.reduceNoise(gazePos1)
 

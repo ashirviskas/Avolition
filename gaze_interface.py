@@ -34,9 +34,30 @@ class GazeInterface:
     def frameToPoint2(frame):
         width = 1920
         height = 1080
-
-        x = 0 if frame.avg.x < 0 else width if frame.avg.x > width else frame.avg.x
-        y = 0 if frame.avg.y < 0 else height if frame.avg.y > height else frame.avg.y
+        left_fixed = frame.lefteye.psize > 0.1
+        right_fixed = frame.righteye.psize > 0.1
+        if left_fixed and right_fixed:
+            x = 0 if frame.avg.x < 0 else width if frame.avg.x > width else frame.avg.x
+            y = 0 if frame.avg.y < 0 else height if frame.avg.y > height else frame.avg.y
+            # self.last_frame = frame
+        elif left_fixed and not right_fixed:
+            x = 0 if frame.lefteye.avg.x < 0 else width if frame.lefteye.avg.x > width else frame.lefteye.avg.x
+            y = 0 if frame.lefteye.avg.y < 0 else height if frame.lefteye.avg.y > height else frame.lefteye.avg.y
+            # self.last_frame = frame
+        elif not left_fixed and right_fixed:
+            x = 0 if frame.righteye.avg.x < 0 else width if frame.righteye.avg.x > width else frame.righteye.avg.x
+            y = 0 if frame.righteye.avg.y < 0 else height if frame.righteye.avg.y > height else frame.righteye.avg.y
+            # self.last_frame = frame
+        elif not left_fixed and not right_fixed:
+            # x = 0 if frame.avg.x < 0 else width if frame.avg.x > width else frame.avg.x
+            # y = 0 if frame.avg.y < 0 else height if frame.avg.y > height else frame.avg.y
+            # if self.last_frame is not None:
+            #     frame = self.last_frame
+            #     x = 0 if frame.avg.x < 0 else width if frame.avg.x > width else frame.avg.x
+            #     y = 0 if frame.avg.y < 0 else height if frame.avg.y > height else frame.avg.y
+            # else:
+            x = width / 2
+            y = width / 2
 
         normalized_x = 2 * (x / width) - 1
         normalized_y = -1 * (2 * (y / height) - 1)

@@ -9,9 +9,10 @@ print("eT;dT;aT;Fix;State;Rwx;Rwy;Avx;Avy;LRwx;LRwy;LAvx;LAvy;LPSz;LCx;LCy;RRwx;
 
 tracker.pushmode()
 count = 0
-while count < 100:
+while count < 500:
     n = tracker.next()
-    print(n)
+    print(n.righteye.avg)
+    # print(n.lefteye)
     count += 1
 
 tracker.pullmode()
