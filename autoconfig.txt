@@ -13,7 +13,7 @@ key_left a|arrow_left
 key_right d|arrow_right
 key_cam_left q|delete
 key_cam_right e|page_down
-key_action1 mouse1|enter
-key_action2 mouse3|space
+key_action1 mouse1|left_eye
+key_action2 mouse3|right_eye
 key_zoomin wheel_up|r
 key_zoomout wheel_down|f

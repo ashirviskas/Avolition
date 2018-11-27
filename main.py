@@ -60,8 +60,8 @@ config_left=ConfigVariableString('key_left', 'a|arrow_left')
 config_right=ConfigVariableString('key_right', 'd|arrow_right')
 config_camera_left=ConfigVariableString('key_cam_left', 'q|delete')
 config_camera_right=ConfigVariableString('key_cam_right', 'e|page_down')
-config_action1=ConfigVariableString('key_action1', 'mouse1|enter')
-config_action2=ConfigVariableString('key_action2', 'mouse3|space')
+config_action1=ConfigVariableString('key_action1', 'mouse1|left_eye')
+config_action2=ConfigVariableString('key_action2', 'mouse3|right_eye')
 config_zoomin=ConfigVariableString('key_zoomin', 'wheel_up|r')
 config_zoomout=ConfigVariableString('key_zoomout', 'wheel_down|f')
 
@@ -90,6 +90,8 @@ import sys
 
 class Config(DirectObject):
     def __init__(self):
+        self.eye_control_enabled = False
+
         base.setBackgroundColor(0, 0, 0)
         base.exitFunc = self.save_and_exit
         self.background = DirectFrame(frameSize=(-512, 0, 0, 512),
@@ -300,7 +302,7 @@ class Config(DirectObject):
 
         self.key_background = DirectFrame(frameSize=(-512, 0, 0, 512),
                                     frameColor=(1,1,1, 1),
-                                    frameTexture='config_keys.png',
+                                    frameTexture='config_keys_eye.png',
                                     parent=pixel2d)
         self.key_background.setPos(512, 0, -512)
         self.key_background.flattenLight()
@@ -336,6 +338,26 @@ class Config(DirectObject):
         self.back.setBin('fixed', 1)
         self.back.bind(DGG.B1PRESS, self.keySetup, [False])
 
+        # Enabled eye
+        self.eye_enabled=DirectFrame(frameSize=(-24, 0, 0, 24),
+                                     frameColor=(1,1,1, 1),
+                                     frameTexture='glass.png',
+                                     state=DGG.NORMAL,
+                                     parent=self.key_background)
+        self.eye_enabled.setPos(495, 0, -120)
+        self.eye_enabled.setBin('fixed', 1)
+        self.eye_enabled.bind(DGG.B1PRESS, self.enableEyeControl, [])
+
+        # Disabled eye
+        self.eye_disabled = DirectFrame(frameSize=(-24, 0, 0, 24),
+                                       frameColor=(1, 1, 1, 1),
+                                       frameTexture='glass2.png',
+                                       state=DGG.NORMAL,
+                                       parent=self.key_background)
+        self.eye_disabled.setPos(495, 0, -120)
+        self.eye_disabled.setBin('fixed', 1)
+        self.eye_disabled.bind(DGG.B1PRESS, self.enableEyeControl, [])
+
         self.keys=DirectFrame(frameSize=(-350, 0, 0, 30),
                                     frameColor=(1,1,1,1),
                                     frameTexture='glass3.png',
@@ -361,6 +383,7 @@ class Config(DirectObject):
         self.keymapOrder=['key_forward','key_back', 'key_left', 'key_right', 'key_cam_left', 'key_cam_right', 'key_action1', 'key_action2', 'key_zoomin', 'key_zoomout']
 
         self.isListeningForKeys=False
+        self.isListeningForEyes=False
         self.currentKey=None
         self.currentButton=None
         x=0
@@ -379,29 +402,52 @@ class Config(DirectObject):
             self.keymap[key][2].setPos(355, 0, -160+x)
             self.keymap[key][2].setBin('fixed', 1)
             self.keymap[key][2].bind(DGG.B1PRESS, self.listenForKey, [key, 2])
-            self.keymap[key].append(DirectFrame(frameSize=(-140, 0, 0, 32),
-                                    text_font=self.font,
-                                    frameColor=(1,1,1, 1),
-                                    frameTexture='glass.png',
-                                    text=self.keymap[key][1].upper(),
-                                    text_scale=16,
-                                    text_fg=(1,1,1,1),
-                                    state=DGG.NORMAL,
-                                    text_pos=(-70,13),
-                                    text_align=TextNode.ACenter,
-                                    parent=self.key_background))
-            self.keymap[key][3].setPos(507, 0, -160+x)
-            self.keymap[key][3].setBin('fixed', 1)
-            self.keymap[key][3].bind(DGG.B1PRESS, self.listenForKey, [key, 3])
+
+            # Only controlls interesting for eye tracking
+            if key == 'key_action1' or key == 'key_action2':
+                self.keymap[key].append(DirectFrame(frameSize=(-140, 0, 0, 32),
+                                        text_font=self.font,
+                                        frameColor=(1,1,1, 1),
+                                        frameTexture='glass.png',
+                                        text=self.keymap[key][1].upper(),
+                                        text_scale=16,
+                                        text_fg=(1,1,1,1),
+                                        state=DGG.NORMAL,
+                                        text_pos=(-70,13),
+                                        text_align=TextNode.ACenter,
+                                        parent=self.key_background))
+                self.keymap[key][3].setPos(507, 0, -160+x)
+                self.keymap[key][3].setBin('fixed', 1)
+                self.keymap[key][3].bind(DGG.B1PRESS, self.listenForEye, [key, 3])
             x+=-32
 
         base.buttonThrowers[0].node().setButtonDownEvent('buttonDown')
         self.accept('buttonDown', self.getKey)
 
+    def enableEyeControl(self, event=None):
+        self.eye_control_enabled = not self.eye_control_enabled
+        if self.eye_control_enabled:
+    #         Listen for eye events
+            self.eye_enabled.show()
+            self.eye_disabled.hide()
+        else:
+    #         Destroy listening
+            self.eye_enabled.hide()
+            self.eye_disabled.show()
+
+        print("Eye control is", self.eye_control_enabled)
+
     def listenForKey(self, key, button, event=None):
         self.currentKey=key
         self.currentButton=button
         self.isListeningForKeys=True
+        self.key_background.hide()
+        self.press.show()
+
+    def listenForEye(self, key, button, event=None):
+        self.currentKey=key
+        self.currentButton=button
+        self.isListeningForEyes=True
         self.key_background.hide()
         self.press.show()
 
