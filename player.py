@@ -88,10 +88,6 @@ class PC1(DirectObject):
         self.monster_list=common['monsterList']
         self.audio3d=common['audio3d']
 
-        self._tracker = EyeTribe(host="localhost", port=6555)
-        self._tracker.connect()
-        self._tracker.pushmode()
-
         if not self.common['safemode']:
             wall_shader=loader.loadShader('tiles.sha')
             black_shader=loader.loadShader('black_parts.sha')
@@ -511,8 +507,12 @@ class PC1(DirectObject):
         self.accept( 'window-event', self.windowEventHandler)
         self.accept("escape",self.optionsSet, ['close'])
 
-        #taskMgr.add(self.__getMousePos, "mousePosTask")
-        taskMgr.add(self.__getTrackerPos, "getTrackerPos")
+        taskMgr.add(self.__getMousePos, "mousePosTask")
+        if self.common["eye_enabled"]:
+            self._tracker = GazeInterface.connect()
+            self.accept("eyeClosed", self.handleEyeClosed)
+            taskMgr.add(self.__getTrackerInfo, "chargenTrackerInfo")
+
         taskMgr.add(self.update, "updatePC")
         taskMgr.doMethodLater(0.05, self.shield_task,'shield_task')
         taskMgr.doMethodLater(0.05, self.sword_task,'sword_task')
@@ -660,8 +660,7 @@ class PC1(DirectObject):
             return task.done
         if self.isBlockin:
             return task.again
-        # if self.keyMap["key_action1"]:
-        if not self.right_open:
+        if self.keyMap["key_action1"]:
             if self.powerUp>=15:
                return task.again
             self.powerUp+=1
@@ -694,8 +693,7 @@ class PC1(DirectObject):
     def shield_task(self, task):
         if self.HP<=0:
             return task.done
-        # if self.keyMap["key_action2"]:
-        if not self.left_open:
+        if self.keyMap["key_action2"]:
             if self.shieldUp>=15:
                 #self.isBlockin=False
                 Sequence(Wait(0.3), Func(self.unBlock)).start()
@@ -863,13 +861,9 @@ class PC1(DirectObject):
             self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
         return task.again
 
-    def __getTrackerPos(self, task):
-        # Get last element from queue
-        ef = self.GAI.getLastFrame(self._tracker)
-        # right_eye_open = False
-        self.right_open = not (ef.righteye.psize < 0.1)
-        self.left_open = not (ef.lefteye.psize < 0.1)
-
+    def __getTrackerInfo(self, task):
+        ef = GazeInterface.getLastFrame(self._tracker)
+        eye_status = GazeInterface.getEyeVisibility(ef)
         gazePos1 = GazeInterface.frameToPoint2(ef)
         gazePos = GazeInterface.reduceNoise(gazePos1)
 
@@ -889,7 +883,28 @@ class PC1(DirectObject):
                     self.common['shadowNode'].setZ(2.7)
         pos2d=Point3(gazePos[0], 0, gazePos[1])
         self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
+
+        # Handle left/right eye closing
+        if not eye_status[0] and not eye_status[1]:
+        #   Both eyes not visible
+        #   Maybe display error?
+            pass
+        else:
+            if not self.left_open == eye_status[0]:
+                messenger.send('eyeClosed', [1, not eye_status[0]])
+            if not self.right_open == eye_status[1]:
+                messenger.send('eyeClosed', [2, not eye_status[1]])
+
+        self.left_open = eye_status[0]
+        self.right_open = eye_status[1]
+
         return task.again
+
+    def handleEyeClosed(self, eye, status):
+        closed_name = "left_eye" if eye == 1 else "right_eye"
+        action_name = "-up" if not status else ""
+        event_name = closed_name+action_name
+        messenger.send(event_name)
 
     def windowEventHandler( self, window=None ):
         if window is not None: # window is none if panda3d is not started
@@ -1197,6 +1212,7 @@ class PC2(DirectObject):
         self.accept(common['keymap']['key_action1'][1], self.keyMap.__setitem__, ["key_action1", True])
         self.accept(common['keymap']['key_action2'][1], self.keyMap.__setitem__, ["key_action2", True])
         self.accept(common['keymap']['key_forward'][0], self.keyMap.__setitem__, ["key_forward", True])
+
         #prime key up
         self.accept(common['keymap']['key_forward'][0]+"-up", self.keyMap.__setitem__, ["key_forward", False])
         self.accept(common['keymap']['key_back'][0]+"-up", self.keyMap.__setitem__, ["key_back", False])

@@ -920,9 +920,6 @@ class CharGen(DirectObject):
         else:
             y_aligned = cursorPos[2] < bounds[3] and cursorPos[2] > 0
 
-        print(cursorPos)
-
-        print("X ", x_aligned, "Y ", y_aligned)
         if x_aligned and y_aligned:
             return True
         return False

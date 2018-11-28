@@ -36,20 +36,26 @@ class GazeInterface:
     @staticmethod
     def connect():
         if GazeInterface.__tracker is not None:
+            GazeInterface.__tracker.pushmode()
             return GazeInterface.__tracker
         tracker = EyeTribe(host="localhost", port=6555)
         tracker.connect()
         tracker.pushmode()
+        GazeInterface.__tracker = tracker
         return tracker
 
     @staticmethod
     def close(tracker):
+        tracker._frameq.queue.clear()
+        if tracker is None:
+            return
+
+        return
+        tracker.pullmode()
+
         # Somewhy peyetribe doesn't want to close connection without throwing exception
         return
-
-        if tracker is not None:
-            tracker.pullmode()
-            tracker.close()
+        tracker.close()
 
     @staticmethod
     def frameToPoint2(frame):
