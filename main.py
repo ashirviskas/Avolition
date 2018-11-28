@@ -50,6 +50,7 @@ config_fulscreen=ConfigVariableBool('fullscreen')
 config_win_size=ConfigVariableInt('win-size', '640 480')
 config_bloom=ConfigVariableBool('bloom', 1)
 config_safemode=ConfigVariableBool('safemode', 0)
+config_eye_enabled=ConfigVariableBool('eye_enabled', 0)
 config_music=ConfigVariableInt('music-volume', '30')
 config_sfx=ConfigVariableInt('sound-volume', '100')
 #keys
@@ -91,8 +92,6 @@ from gaze_interface import GazeInterface
 
 class Config(DirectObject):
     def __init__(self):
-        self.eye_control_enabled = False
-
         base.setBackgroundColor(0, 0, 0)
         base.exitFunc = self.save_and_exit
         self.background = DirectFrame(frameSize=(-512, 0, 0, 512),
@@ -291,6 +290,14 @@ class Config(DirectObject):
             self.safeModeButton['frameTexture']='glass.png'
         else:
             self.options['safemode']=False
+
+        if config_eye_enabled.getValue():
+            self.options['eye_enabled']=True
+            self.eye_control_enabled = True
+        else:
+            self.options['eye_enabled']=False
+            self.eye_control_enabled = False
+
         self.set_option("resolution", str(config_win_size.getWord(0))+" "+str(config_win_size.getWord(1)))    
         #keyboard setup:
         self.font = loader.loadFont('Bitter-Bold.otf')
@@ -347,7 +354,7 @@ class Config(DirectObject):
                                      parent=self.key_background)
         self.eye_enabled.setPos(495, 0, -120)
         self.eye_enabled.setBin('fixed', 1)
-        self.eye_enabled.bind(DGG.B1PRESS, self.enableEyeControl, [])
+        self.eye_enabled.bind(DGG.B1PRESS, self.enableEyeControl, [None])
 
         # Disabled eye
         self.eye_disabled = DirectFrame(frameSize=(-24, 0, 0, 24),
@@ -357,7 +364,8 @@ class Config(DirectObject):
                                        parent=self.key_background)
         self.eye_disabled.setPos(495, 0, -120)
         self.eye_disabled.setBin('fixed', 1)
-        self.eye_disabled.bind(DGG.B1PRESS, self.enableEyeControl, [])
+        self.eye_disabled.bind(DGG.B1PRESS, self.enableEyeControl, [None])
+        self.enableEyeControl(self.eye_control_enabled)
 
         self.keys=DirectFrame(frameSize=(-350, 0, 0, 30),
                                     frameColor=(1,1,1,1),
@@ -426,19 +434,22 @@ class Config(DirectObject):
         self.accept('buttonDown', self.getKey)
         self.accept('eyeClosed', self.eyeClosed)
 
-    def enableEyeControl(self, event=None):
-        self.eye_control_enabled = not self.eye_control_enabled
+    def enableEyeControl(self, enable=None, event=None):
+        if enable is None:
+            self.eye_control_enabled = not self.eye_control_enabled
+        else:
+            self.eye_control_enabled = enable
+
         if self.eye_control_enabled:
-    #         Listen for eye events
             self.eye_enabled.show()
             self.eye_disabled.hide()
             self.connectEyeTribe()
         else:
-    #         Destroy listening
             self.eye_enabled.hide()
             self.eye_disabled.show()
             self.disconectEyeTribe()
 
+        self.options["eye_enabled"] = self.eye_control_enabled
         print("Eye control is", self.eye_control_enabled)
 
     def connectEyeTribe(self):
@@ -492,12 +503,12 @@ class Config(DirectObject):
         self.__left_open = eye_visibility[0]
         self.__right_open = eye_visibility[1]
 
+        if self.__curr_confirm_cnt > 0:
+            return task.again
         if self.__curr_confirm_cnt == 0 and not self.__left_open:
             messenger.send('eyeClosed', [1])
         if self.__curr_confirm_cnt == 0 and not self.__right_open:
             messenger.send('eyeClosed', [2])
-        if self.__curr_confirm_cnt > 0:
-            return task.again
 
     def eyeClosed(self, closed_eye):
         left_keyname = "left_eye"
@@ -736,7 +747,8 @@ class Config(DirectObject):
         self.close.destroy()
         for key in self.keymap:
             self.keymap[key][2].destroy()
-            self.keymap[key][3].destroy()
+            if len(self.keymap[key]) > 3:
+                self.keymap[key][3].destroy()
 
         #self.options=None
         #self.keymap=None
@@ -768,6 +780,10 @@ class Config(DirectObject):
                 temp.write("safemode 1\n")
             else:
                 temp.write("safemode 0\n")
+            if self.options["eye_enabled"]:
+                temp.write("eye_enabled 1\n")
+            else:
+                temp.write("eye_enabled 0\n")
             for key in self.keymap:
                 temp.write(key+" "+self.keymap[key][0]+"|"+self.keymap[key][1]+"\n") 
 
@@ -807,6 +823,10 @@ class Config(DirectObject):
                 temp.write("safemode 1\n")
             else:
                 temp.write("safemode 0\n")
+            if self.options["eye_enabled"]:
+                temp.write("eye_enabled 1\n")
+            else:
+                temp.write("eye_enabled 0\n")
             for key in self.keymap:
                 temp.write(key+" "+self.keymap[key][0]+"|"+self.keymap[key][1]+"\n")         
         sys.exit()

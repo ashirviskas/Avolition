@@ -7,6 +7,7 @@ bloom 1
 multisamples 2
 fullscreen 1
 safemode 0
+eye_enabled 1
 key_forward w|arrow_up
 key_back s|arrow_down
 key_left a|arrow_left

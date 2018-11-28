@@ -60,6 +60,7 @@ config_bloom=ConfigVariableBool('bloom', 1)
 config_music=ConfigVariableInt('music-volume', '30')
 config_sfx=ConfigVariableInt('sound-volume', '100')
 config_safemode=ConfigVariableBool('safemode', 0)
+config_eye_enabled=ConfigVariableBool('eye_enabled', 0)
 #keys
 config_forward=ConfigVariableString('key_forward', 'w|arrow_up')
 config_back=ConfigVariableString('key_back', 's|arrow_down')
@@ -67,8 +68,8 @@ config_left=ConfigVariableString('key_left', 'a|arrow_left')
 config_right=ConfigVariableString('key_right', 'd|arrow_right')
 config_camera_left=ConfigVariableString('key_cam_left', 'q|delete')
 config_camera_right=ConfigVariableString('key_cam_right', 'e|page_down')
-config_action1=ConfigVariableString('key_action1', 'mouse1|enter')
-config_action2=ConfigVariableString('key_action2', 'mouse3|space')
+config_action1=ConfigVariableString('key_action1', 'mouse1|left_eye')
+config_action2=ConfigVariableString('key_action2', 'mouse3|right_eye')
 config_zoomin=ConfigVariableString('key_zoomin', 'wheel_up|r')
 config_zoomout=ConfigVariableString('key_zoomout', 'wheel_down|f')
 #if(config_aa.getValue()>0):
@@ -139,6 +140,7 @@ class Game(DirectObject):
         self.common={}
         self.common['root']=root
         self.common['safemode']=config_safemode.getValue()
+        self.common['eye_enabled']=config_eye_enabled.getValue()
         #print self.common['safemode']
         #keys
         self.common['keymap']={}
