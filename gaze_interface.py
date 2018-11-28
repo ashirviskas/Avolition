@@ -34,8 +34,9 @@ class GazeInterface:
     def frameToPoint2(frame):
         width = 1920
         height = 1080
-        left_fixed = frame.lefteye.psize > 0.1
-        right_fixed = frame.righteye.psize > 0.1
+        eye_visibility = GazeInterface.getEyeVisibility(frame)
+        left_fixed = eye_visibility[0]
+        right_fixed = eye_visibility[1]
         if left_fixed and right_fixed:
             x = 0 if frame.avg.x < 0 else width if frame.avg.x > width else frame.avg.x
             y = 0 if frame.avg.y < 0 else height if frame.avg.y > height else frame.avg.y
@@ -71,4 +72,16 @@ class GazeInterface:
             ef = tracker.next()
         ef = tracker.next(True)
         return ef
+
+    """
+    Return tuple for left and right eye status
+    :returns (LeftEyeDetected:bool, RightEyeDetected:bool)
+    """
+    @staticmethod
+    def getEyeVisibility(frame):
+        threshold = 0.1
+        left_visible = frame.lefteye.psize > threshold
+        right_visible = frame.righteye.psize > threshold
+        return left_visible, right_visible
+
 

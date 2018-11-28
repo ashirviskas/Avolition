@@ -45,7 +45,6 @@ from panda3d.core import ConfigVariableInt
 from panda3d.core import ConfigVariableBool
 from panda3d.core import ConfigVariableString
 
-
 config_aa=ConfigVariableInt('multisamples', 0)
 config_fulscreen=ConfigVariableBool('fullscreen')
 config_win_size=ConfigVariableInt('win-size', '640 480')
@@ -87,6 +86,8 @@ from direct.showbase.DirectObject import DirectObject
 import sys
 #import collections
 
+from peyetribe import EyeTribe
+from gaze_interface import GazeInterface
 
 class Config(DirectObject):
     def __init__(self):
@@ -423,6 +424,7 @@ class Config(DirectObject):
 
         base.buttonThrowers[0].node().setButtonDownEvent('buttonDown')
         self.accept('buttonDown', self.getKey)
+        self.accept('eyeClosed', self.eyeClosed)
 
     def enableEyeControl(self, event=None):
         self.eye_control_enabled = not self.eye_control_enabled
@@ -430,12 +432,23 @@ class Config(DirectObject):
     #         Listen for eye events
             self.eye_enabled.show()
             self.eye_disabled.hide()
+            self.connectEyeTribe()
         else:
     #         Destroy listening
             self.eye_enabled.hide()
             self.eye_disabled.show()
+            self.disconectEyeTribe()
 
         print("Eye control is", self.eye_control_enabled)
+
+    def connectEyeTribe(self):
+        self._tracker = EyeTribe(host="localhost", port=6555)
+        self._tracker.connect()
+        self._tracker.pushmode()
+
+    def disconectEyeTribe(self):
+        self._tracker.pullmode()
+        self._tracker.close()
 
     def listenForKey(self, key, button, event=None):
         self.currentKey=key
@@ -445,11 +458,70 @@ class Config(DirectObject):
         self.press.show()
 
     def listenForEye(self, key, button, event=None):
+        if not self.eye_control_enabled:
+            return
         self.currentKey=key
         self.currentButton=button
         self.isListeningForEyes=True
         self.key_background.hide()
         self.press.show()
+
+        self.__left_open = True
+        self.__right_open = True
+        self.__eye_confirm_cnt = 20
+        self.__curr_confirm_cnt = self.__eye_confirm_cnt
+        taskMgr.add(self.listenForEyeClose, 'eyeCloseListen')
+
+    """
+    Sends message 1 - left_eye, 2 - right_eye
+    """
+    def listenForEyeClose(self, task):
+        ef = GazeInterface.getLastFrame(self._tracker)
+        eye_visibility = GazeInterface.getEyeVisibility(ef)
+        print ("L:", self.__left_open, "R:", self.__right_open)
+
+        # Count how many frames eye was closed
+        # Reset counting if both eyes gets to same state
+        if not self.__left_open and not eye_visibility[0]:
+            self.__curr_confirm_cnt -= 1
+        if not self.__right_open and not eye_visibility[1]:
+            self.__curr_confirm_cnt -= 1
+        if (not self.__left_open and not self.__right_open) or (self.__left_open and self.__right_open ):
+            self.__curr_confirm_cnt = self.__eye_confirm_cnt
+
+        self.__left_open = eye_visibility[0]
+        self.__right_open = eye_visibility[1]
+
+        if self.__curr_confirm_cnt == 0 and not self.__left_open:
+            messenger.send('eyeClosed', [1])
+        if self.__curr_confirm_cnt == 0 and not self.__right_open:
+            messenger.send('eyeClosed', [2])
+        if self.__curr_confirm_cnt > 0:
+            return task.again
+
+    def eyeClosed(self, closed_eye):
+        left_keyname = "left_eye"
+        right_keyname = "right_eye"
+        keyname = left_keyname if closed_eye == 1 else right_keyname
+        opposite_keyname = left_keyname if closed_eye == 2 else right_keyname
+
+        for key in self.keymap:
+            if keyname in self.keymap[key]:
+                # print keyname,"used"
+                button = self.keymap[key].index(keyname)
+                # print button
+                old_key = self.keymap[self.currentKey][self.currentButton - 2]
+                # print old_key
+                self.keymap[key][button + 2]['text'] = old_key.upper()
+                self.keymap[key][button] = old_key
+                break
+
+        self.keymap[self.currentKey][self.currentButton]['text'] = keyname.upper()
+        self.keymap[self.currentKey][self.currentButton - 2] = keyname
+
+        self.isListeningForEyes = False
+        self.key_background.show()
+        self.press.hide()
 
     def keySetup(self, show=True, mouse=None):
         if show:
@@ -465,6 +537,7 @@ class Config(DirectObject):
 
     def cancelKey(self, event=None):
         self.isListeningForKeys=False
+        self.isListeningForEyes=False
         self.key_background.show()
         self.press.hide()
 
