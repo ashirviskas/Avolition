@@ -32,6 +32,7 @@ import webbrowser
 
 class CharGen(DirectObject):
     def __init__(self, common):
+        self._tracker = None
         self.common=common
         self.common['chargen']=self
         self.load()        
@@ -279,9 +280,7 @@ class CharGen(DirectObject):
         self.start_next.setBin('fixed', 1)
         self.start_next.wrtReparentTo(self.start)
         
-        self.start.hide() 
-        
-        
+        self.start.hide()
        
         self.slider3 = DirectSlider(range=(0,100),
                                     value=50,
@@ -471,7 +470,11 @@ class CharGen(DirectObject):
         
         taskMgr.doMethodLater(0.2, self.flicker,'flicker')
         #taskMgr.add(self.camera_spin, "camera_spin")  
-        taskMgr.add(self.__getMousePos, "chargenMousePos")  
+        taskMgr.add(self.__getMousePos, "chargenMousePos")
+        if self.common["eye_enabled"]:
+            self._tracker = GazeInterface.connect()
+            self.accept("eyeClosed", self.handleEyeClosed)
+            taskMgr.add(self.__getTrackerInfo, "chargenTrackerInfo")
         
         self.current_class=None
         
@@ -521,7 +524,11 @@ class CharGen(DirectObject):
         if taskMgr.hasTaskNamed('flicker'):
             taskMgr.remove('flicker') 
         if taskMgr.hasTaskNamed('chargenMousePos'):
-            taskMgr.remove('chargenMousePos')  
+            taskMgr.remove('chargenMousePos')
+        if taskMgr.hasTaskNamed('chargenTrackerInfo'):
+            taskMgr.remove('chargenTrackerInfo')
+        GazeInterface.close(self._tracker)
+
         self.common['traverser'].removeCollider(self.pickerNP)
         self.pickerNP.removeNode() 
         self.Ambient.removeNode()
@@ -543,7 +550,7 @@ class CharGen(DirectObject):
         self.close.destroy()
         self.title.destroy()
         self.mp_logo.destroy()
-        
+
         render.setLightOff()
         self.ignoreAll()
         
@@ -863,7 +870,63 @@ class CharGen(DirectObject):
     def exit(self, event=None):
         self.common['root'].save_and_exit()
         #sys.exit()
-    
+
+    def __getTrackerInfo(self, task):
+        ef = GazeInterface.getLastFrame(self._tracker)
+        eye_status = GazeInterface.getEyeVisibility(ef)
+        self.gazePos1 = GazeInterface.frameToPoint2(ef)
+        self.gazePos = GazeInterface.reduceNoise(self.gazePos1)
+
+        # Handle cursor position
+        self.pickerRay.setFromLens(base.camNode, self.gazePos[0], self.gazePos[1])
+        pos2d = Point3(self.gazePos[0], 0, self.gazePos[1])
+        self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
+        self.Tooltip.setPos(self.cursor.getPos())
+
+        # Handle left/right eye closing
+        self.left_open = eye_status[0]
+        self.right_open = eye_status[1]
+
+        if not eye_status[0] and not eye_status[1]:
+        #   Both eyes not visible
+        #   Maybe display error?
+            pass
+        else:
+            if not eye_status[0]:
+                messenger.send('eyeClosed', [1])
+            if not eye_status[1]:
+                messenger.send('eyeClosed', [2])
+
+        return task.again
+
+    def handleEyeClosed(self, eye):
+        closed_name = "left_eye" if eye == 1 else "right_eye"
+        if self.common['keymap']["key_action1"][1] == closed_name:
+            if self.cursorInside(self.start_main):
+                self.onStart()
+            else:
+                self.onClick()
+
+    def cursorInside(self, frame):
+        bounds = frame.getBounds()
+        cursorPos = self.cursor.getPos(frame)
+        if bounds[0] < 0:
+            x_aligned = cursorPos[0] > bounds[0] and cursorPos[0] < 0
+        else:
+            x_aligned = cursorPos[0] < bounds[0] and cursorPos[0] > 0
+
+        if bounds[3] < 0:
+            y_aligned = cursorPos[2] > bounds[3] and cursorPos[2] < 0
+        else:
+            y_aligned = cursorPos[2] < bounds[3] and cursorPos[2] > 0
+
+        print(cursorPos)
+
+        print("X ", x_aligned, "Y ", y_aligned)
+        if x_aligned and y_aligned:
+            return True
+        return False
+
     def __getMousePos(self, task):
         if base.mouseWatcherNode.hasMouse():  
             mpos = base.mouseWatcherNode.getMouse()

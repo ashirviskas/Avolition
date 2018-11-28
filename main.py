@@ -92,6 +92,8 @@ from gaze_interface import GazeInterface
 
 class Config(DirectObject):
     def __init__(self):
+        self._tracker = None
+
         base.setBackgroundColor(0, 0, 0)
         base.exitFunc = self.save_and_exit
         self.background = DirectFrame(frameSize=(-512, 0, 0, 512),
@@ -453,13 +455,11 @@ class Config(DirectObject):
         print("Eye control is", self.eye_control_enabled)
 
     def connectEyeTribe(self):
-        self._tracker = EyeTribe(host="localhost", port=6555)
-        self._tracker.connect()
-        self._tracker.pushmode()
+        self._tracker = GazeInterface.connect()
 
     def disconectEyeTribe(self):
-        self._tracker.pullmode()
-        self._tracker.close()
+        GazeInterface.close(self._tracker)
+        self._tracker = None
 
     def listenForKey(self, key, button, event=None):
         self.currentKey=key
