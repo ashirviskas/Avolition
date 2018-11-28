@@ -27,6 +27,7 @@ import random
 from direct.showbase.PythonUtil import fitSrcAngle2Dest
 from peyetribe import EyeTribe
 from gaze_interface import GazeInterface
+from panda3d_helper import PandaHelper
 
 class PC1(DirectObject):
 
@@ -872,8 +873,8 @@ class PC1(DirectObject):
         farPoint = Point3()
         base.camLens.extrude(gazePos, nearPoint, farPoint)
         if self.plane.intersectsLine(pos3d, render.getRelativePoint(camera, nearPoint),render.getRelativePoint(camera, farPoint)):
-            #if self.camera_momentum==0:
-            if self.HP>0:
+            #if .camera_momentum==0:
+            if self.HP is not None and self.HP>0:
                 self.node.headsUp(pos3d)
             self.pLightNode.setPos(pos3d)
             self.pLightNode.setZ(2.7)
@@ -906,6 +907,16 @@ class PC1(DirectObject):
         event_name = closed_name+action_name
         messenger.send(event_name)
 
+        if self.common['keymap']["key_action1"][1] == closed_name:
+            self.handleMenu()
+
+    def handleMenu(self):
+        if self.cursorInside(self.options_exit):
+            self.optionsSet('exit')
+
+    def cursorInside(self, frame):
+        return PandaHelper.targetInsideFrame(self.cursor, frame)
+
     def windowEventHandler( self, window=None ):
         if window is not None: # window is none if panda3d is not started
             wp = base.win.getProperties()
@@ -923,8 +934,8 @@ class PC1(DirectObject):
 
         if taskMgr.hasTaskNamed("mousePosTask"):
             taskMgr.remove("mousePosTask")
-        if taskMgr.hasTaskNamed("trackerPosTask"):
-            taskMgr.remove("trackerPosTask")
+        if taskMgr.hasTaskNamed("chargenTrackerInfo"):
+            taskMgr.remove("chargenTrackerInfo")
         if taskMgr.hasTaskNamed("updatePC"):
             taskMgr.remove("updatePC")
         if taskMgr.hasTaskNamed("shield_task"):
@@ -987,9 +998,7 @@ class PC1(DirectObject):
         self.node.setPos(0,0,0)
         self.common['player_node']=self.node
         self.common['CharGen'].load()
-
-        self._tracker.pullmode()
-        self._tracker.close()
+        GazeInterface.close(self._tracker)
 
 class PC2(DirectObject):
     def onLevelLoad(self, common):

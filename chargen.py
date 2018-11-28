@@ -29,6 +29,7 @@ from player import *
 #from player import PC2
 from direct.interval.ActorInterval import ActorInterval
 import webbrowser
+from panda3d_helper import PandaHelper
 
 class CharGen(DirectObject):
     def __init__(self, common):
@@ -904,25 +905,13 @@ class CharGen(DirectObject):
         if self.common['keymap']["key_action1"][1] == closed_name:
             if self.cursorInside(self.start_main):
                 self.onStart()
+            elif self.cursorInside(self.close):
+                self.exit()
             else:
                 self.onClick()
 
     def cursorInside(self, frame):
-        bounds = frame.getBounds()
-        cursorPos = self.cursor.getPos(frame)
-        if bounds[0] < 0:
-            x_aligned = cursorPos[0] > bounds[0] and cursorPos[0] < 0
-        else:
-            x_aligned = cursorPos[0] < bounds[0] and cursorPos[0] > 0
-
-        if bounds[3] < 0:
-            y_aligned = cursorPos[2] > bounds[3] and cursorPos[2] < 0
-        else:
-            y_aligned = cursorPos[2] < bounds[3] and cursorPos[2] > 0
-
-        if x_aligned and y_aligned:
-            return True
-        return False
+        return PandaHelper.targetInsideFrame(self.cursor, frame)
 
     def __getMousePos(self, task):
         if base.mouseWatcherNode.hasMouse():  

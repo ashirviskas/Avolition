@@ -89,6 +89,7 @@ import sys
 
 from peyetribe import EyeTribe
 from gaze_interface import GazeInterface
+from panda3d_helper import PandaHelper
 
 class Config(DirectObject):
     def __init__(self):
