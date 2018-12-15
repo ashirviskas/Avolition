@@ -1,7 +1,7 @@
 #auto generated config file
 #use config.txt to hand-edit custom options
 win-size 1920 1080
-music-volume 100
+music-volume 40
 sound-volume 100
 bloom 1
 multisamples 2
