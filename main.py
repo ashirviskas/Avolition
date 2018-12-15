@@ -450,7 +450,7 @@ class Config(DirectObject):
         else:
             self.eye_enabled.hide()
             self.eye_disabled.show()
-            self.disconectEyeTribe()
+            # self.disconectEyeTribe()
 
         self.options["eye_enabled"] = self.eye_control_enabled
         print("Eye control is", self.eye_control_enabled)
