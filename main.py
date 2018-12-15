@@ -75,8 +75,8 @@ wp.setCursorHidden(False)
 wp.setFullscreen(False)
 wp.setUndecorated(True)
 wp.setTitle("Avolition - Configuration")
-wp.setSize(512,512)
-wp.setOrigin(-2,-2)
+wp.setSize(512, 512)
+wp.setOrigin(-2, -2)
 WindowProperties.setDefault(wp)
 
 

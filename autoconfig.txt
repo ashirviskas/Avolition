@@ -1,13 +1,13 @@
 #auto generated config file
 #use config.txt to hand-edit custom options
 win-size 1920 1080
-music-volume 7
-sound-volume 15
+music-volume 100
+sound-volume 100
 bloom 1
 multisamples 2
 fullscreen 1
 safemode 0
-eye_enabled 1
+eye_enabled 0
 key_forward w|arrow_up
 key_back s|arrow_down
 key_left a|arrow_left

@@ -29,6 +29,7 @@ from peyetribe import EyeTribe
 from gaze_interface import GazeInterface
 from panda3d_helper import PandaHelper
 from heatmapper import Heatmapper
+import numpy as np
 
 class PC1(DirectObject):
 
@@ -37,6 +38,8 @@ class PC1(DirectObject):
         self.black=common['map_black']
         self.walls=common['map_walls']
         self.floor=common['map_floor']
+        # self.hm = Heatmapper()
+        # self.cursor_pinged = 0
 
         #print self.black, self.walls, self.floor
 
@@ -89,7 +92,9 @@ class PC1(DirectObject):
         self.floor=common['map_floor']
         self.monster_list=common['monsterList']
         self.audio3d=common['audio3d']
-        self.heatmap = Heatmapper()
+        self.hm = Heatmapper()
+        self.cursor_pinged = 0
+        self.save = True
 
         if not self.common['safemode']:
             wall_shader=loader.loadShader('tiles.sha')
@@ -626,6 +631,9 @@ class PC1(DirectObject):
         self.HP-=damage
         #print self.HP
         if self.HP<=0:
+            if self.save:
+                self.hm.generate_video()
+                self.save = False
             if(self.actor.getCurrentAnim()!="die"):
                 self.actor.play("die")
                 self.sounds["walk"].stop()
@@ -861,7 +869,23 @@ class PC1(DirectObject):
                     if self.node.getDistance(self.pLightNode)<13.0:
                         self.common['shadowNode'].setPos(self.pLightNode.getPos(render))
                         self.common['shadowNode'].setZ(2.7)
-            pos2d=Point3(base.mouseWatcherNode.getMouseX() ,0, base.mouseWatcherNode.getMouseY())
+            msx = base.mouseWatcherNode.getMouseX()
+            msy = base.mouseWatcherNode.getMouseY()
+            pos2d=Point3(msx ,0, msy)
+            pos_arr = [int(abs((msy - 1) / 2)*1079), int(((msx+ 1)/2)*1919)]
+            print(msx)
+            if pos_arr[0] is not None and pos_arr[1] is not None and self.save:
+                self.hm.add_point(pos_arr)
+                if self.cursor_pinged > 20:
+                    self.cursor_pinged = 0
+                if self.cursor_pinged == 0:
+                    screenshot = base.win.getScreenshot()
+                    im_format = screenshot.getRamImage()
+                    image = np.frombuffer(im_format, np.uint8)  # use data.get_data() instead of data in python 2
+                    image.shape = (screenshot.getYSize(), screenshot.getXSize(), screenshot.getNumComponents())
+                    image = np.flipud(image)[:, :, :3]
+                    self.hm.add_frame(image)
+                self.cursor_pinged += 1
             self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
         return task.again
 
@@ -1603,6 +1627,7 @@ class PC2(DirectObject):
         #damage=round(damage,0)
         self.HP-=damage*2
         if self.HP<=0:
+
             if(self.actor.getCurrentAnim()!="die"):
                 self.actor.play("die")
                 self.sounds["walk"].stop()

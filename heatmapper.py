@@ -3,6 +3,9 @@ from scipy import ndimage
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 from pylab import *
+import time
+import cv2
+import scipy.stats as st
 
 
 class Heatmapper:
@@ -27,8 +30,24 @@ class Heatmapper:
         self.frames.append(frame)
 
     def get_gameframe_for_frame(self, frame_n):
-        frame = self.frames[frame_n//self.frame_every_points]
+        nn = frame_n//self.frame_every_points
+        if nn >= len(self.frames):
+            nn = len(self.frames) -1
+        frame = self.frames[nn]
         return frame
+
+    @staticmethod
+    def gkern(l=5, sig=1.):
+        """
+        creates gaussian kernel with side length l and a sigma of sig
+        """
+
+        ax = np.arange(-l // 2 + 1., l // 2 + 1.)
+        xx, yy = np.meshgrid(ax, ax)
+
+        kernel = np.exp(-(xx ** 2 + yy ** 2) / (2. * sig ** 2))
+
+        return kernel / np.sum(kernel)
 
     def generate_heatmap_for_frame(self, frame_n):
         hm_start = frame_n #- self.frame_every_points
@@ -39,14 +58,34 @@ class Heatmapper:
             hm_end = len(self.full_history) - 1
         elif hm_end == self.frame_every_points:
             hm_end = self.frame_every_points * 2
-
+        blur_kernel = self.gkern(60, 10) * 300
+        # print(blur_kernel)
+        blur = np.array(blur_kernel)
         heatmap = np.zeros(self.full_history.shape, dtype=np.float)
-        for i in range(hm_start, hm_end +1):
-            p = self.history[i]
-            heatmap[p[0], p[1]] += 1
-        img = ndimage.filters.gaussian_filter(heatmap, sigma=40)*500
 
-        return img
+        for i in range(hm_start, hm_end + 1):
+            if i >= len(self.history):
+                break
+            p = self.history[i]
+            x_p = p[1]
+            y_p = p[0]
+            if x_p < 31:
+                x_p = 31
+            if x_p > 1887:
+                x_p = 1887
+            if y_p < 31:
+                y_p = 31
+            if y_p > 1047:
+                y_p = 1047
+            print(p)
+            print(x_p)
+            print(y_p)
+            heatmap[y_p - 30: y_p + 30, x_p - 30: x_p + 30,] += blur
+        # img = ndimage.filters.gaussian_filter(heatmap, sigma=15)*500
+        # img = cv2.GaussianBlur(heatmap, (5, 5), 16)
+        # img = self.vectorized_RBF_kernel(heatmap, 16)
+
+        return heatmap
 
     def generate_video(self):
         fig = plt.figure()
@@ -75,24 +114,28 @@ class Heatmapper:
             return [im, imm]
 
         #legend(loc=0)
-        ani = animation.FuncAnimation(fig, update_img, 200, interval=5)
+        ani = animation.FuncAnimation(fig, update_img, len(self.history)-3, interval=1)
         writer = animation.writers['ffmpeg'](fps=60)
 
         ani.save('heatmap.mp4', writer=writer, dpi=100)
+        print("Heatmap saved to heatmap.mp4")
         return ani
 
 
 if __name__ == "__main__":
-    hm = Heatmapper(frame_every_points=50)
+    hm = Heatmapper(frame_every_points=20)
     mu, sigma = 0.2, 0.3
-    xx = np.array(((np.random.normal(mu, sigma, 10000) * 400) + 400), dtype=np.uint16)
-    yy = np.array(((np.random.normal(mu, sigma, 10000) * 600) + 850), dtype=np.uint16)
+    xx = np.array(((np.random.normal(mu, sigma, 100) * 400) + 400), dtype=np.uint16)
+    yy = np.array(((np.random.normal(mu, sigma, 100) * 600) + 850), dtype=np.uint16)
     print(xx.shape)
     for i in range(len(xx)):
         hm.add_point((xx[i], yy[i]))
-    for i in range(len(xx) // 50):
+    for i in range((len(xx) // 20) + 1):
         f = np.random.rand(1080, 1920)
         hm.add_frame(f)
     # hm.generate_fulll_history_heatmap()
+    stt = time.time()
     hm.generate_video()
+    se = time.time()
+    print(se-stt)
 
