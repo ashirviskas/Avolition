@@ -850,7 +850,7 @@ class PC1(DirectObject):
                 self.actor.loop("idle")
 
         return task.cont
-    def do_heatmap_stuff(self, x, y):
+    def do_heatmap_stuff(self, msx, msy):
         pos_arr = [int(abs((msy - 1) / 2) * 1079), int(((msx + 1) / 2) * 1919)]
         print(msx)
         if pos_arr[0] is not None and pos_arr[1] is not None and self.save:
@@ -886,8 +886,8 @@ class PC1(DirectObject):
                         self.common['shadowNode'].setZ(2.7)
             msx = base.mouseWatcherNode.getMouseX()
             msy = base.mouseWatcherNode.getMouseY()
+            # self.do_heatmap_stuff(msx, msy)
             pos2d=Point3(msx, 0, msy)
-            self.do_heatmap_stuff(msx, msy)
             self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
         return task.again
 
@@ -896,7 +896,7 @@ class PC1(DirectObject):
         eye_status = GazeInterface.getEyeVisibility(ef)
         gazePos1 = GazeInterface.frameToPoint2(ef)
         gazePos = GazeInterface.reduceNoise(gazePos1)
-        self.heatmap.add_point(gazePos)
+        # self.hm.add_point(gazePos)
 
         pos3d = Point3()
         nearPoint = Point3()

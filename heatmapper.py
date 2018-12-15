@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 from pylab import *
 import time
-import cv2
+# import cv2
 import scipy.stats as st
 
 

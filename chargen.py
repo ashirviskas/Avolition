@@ -475,7 +475,7 @@ class CharGen(DirectObject):
         if self.common["eye_enabled"]:
             self._tracker = GazeInterface.connect()
             self.accept("eyeClosed", self.handleEyeClosed)
-            taskMgr.add(self.__getTrackerInfo, "chargenTrackerInfo")
+            # taskMgr.add(self.__getTrackerInfo, "chargenTrackerInfo")
         
         self.current_class=None
         
@@ -528,7 +528,7 @@ class CharGen(DirectObject):
             taskMgr.remove('chargenMousePos')
         if taskMgr.hasTaskNamed('chargenTrackerInfo'):
             taskMgr.remove('chargenTrackerInfo')
-        # GazeInterface.close(self._tracker)
+        GazeInterface.close(self._tracker)
 
         self.common['traverser'].removeCollider(self.pickerNP)
         self.pickerNP.removeNode() 
@@ -881,7 +881,7 @@ class CharGen(DirectObject):
         # Handle cursor position
         self.pickerRay.setFromLens(base.camNode, self.gazePos[0], self.gazePos[1])
         pos2d = Point3(self.gazePos[0], 0, self.gazePos[1])
-        self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
+        # self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
         self.Tooltip.setPos(self.cursor.getPos())
 
         # Handle left/right eye closing
