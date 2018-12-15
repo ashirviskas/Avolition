@@ -28,6 +28,7 @@ from direct.showbase.PythonUtil import fitSrcAngle2Dest
 from peyetribe import EyeTribe
 from gaze_interface import GazeInterface
 from panda3d_helper import PandaHelper
+from heatmapper import Heatmapper
 
 class PC1(DirectObject):
 
@@ -88,6 +89,7 @@ class PC1(DirectObject):
         self.floor=common['map_floor']
         self.monster_list=common['monsterList']
         self.audio3d=common['audio3d']
+        self.heatmap = Heatmapper()
 
         if not self.common['safemode']:
             wall_shader=loader.loadShader('tiles.sha')
@@ -630,6 +632,7 @@ class PC1(DirectObject):
                 self.coll_sphere.node().setFromCollideMask(BitMask32.allOff())
                 self.coll_sphere.node().setIntoCollideMask(BitMask32.allOff())
             self.HP=0
+
         elif not self.isBlockin:
             if(self.actor.getCurrentAnim()!="hit"):
                 self.actor.play("hit")
@@ -867,6 +870,7 @@ class PC1(DirectObject):
         eye_status = GazeInterface.getEyeVisibility(ef)
         gazePos1 = GazeInterface.frameToPoint2(ef)
         gazePos = GazeInterface.reduceNoise(gazePos1)
+        self.heatmap.add_point(gazePos)
 
         pos3d = Point3()
         nearPoint = Point3()
