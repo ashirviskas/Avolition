@@ -850,6 +850,21 @@ class PC1(DirectObject):
                 self.actor.loop("idle")
 
         return task.cont
+    def do_heatmap_stuff(self, x, y):
+        pos_arr = [int(abs((msy - 1) / 2) * 1079), int(((msx + 1) / 2) * 1919)]
+        print(msx)
+        if pos_arr[0] is not None and pos_arr[1] is not None and self.save:
+            self.hm.add_point(pos_arr)
+            if self.cursor_pinged > 20:
+                self.cursor_pinged = 0
+            if self.cursor_pinged == 0:
+                screenshot = base.win.getScreenshot()
+                im_format = screenshot.getRamImage()
+                image = np.frombuffer(im_format, np.uint8)  # use data.get_data() instead of data in python 2
+                image.shape = (screenshot.getYSize(), screenshot.getXSize(), screenshot.getNumComponents())
+                image = np.flipud(image)[:, :, :3]
+                self.hm.add_frame(image)
+            self.cursor_pinged += 1
 
     def __getMousePos(self, task):
         if base.mouseWatcherNode.hasMouse():
@@ -871,21 +886,8 @@ class PC1(DirectObject):
                         self.common['shadowNode'].setZ(2.7)
             msx = base.mouseWatcherNode.getMouseX()
             msy = base.mouseWatcherNode.getMouseY()
-            pos2d=Point3(msx ,0, msy)
-            pos_arr = [int(abs((msy - 1) / 2)*1079), int(((msx+ 1)/2)*1919)]
-            print(msx)
-            if pos_arr[0] is not None and pos_arr[1] is not None and self.save:
-                self.hm.add_point(pos_arr)
-                if self.cursor_pinged > 20:
-                    self.cursor_pinged = 0
-                if self.cursor_pinged == 0:
-                    screenshot = base.win.getScreenshot()
-                    im_format = screenshot.getRamImage()
-                    image = np.frombuffer(im_format, np.uint8)  # use data.get_data() instead of data in python 2
-                    image.shape = (screenshot.getYSize(), screenshot.getXSize(), screenshot.getNumComponents())
-                    image = np.flipud(image)[:, :, :3]
-                    self.hm.add_frame(image)
-                self.cursor_pinged += 1
+            pos2d=Point3(msx, 0, msy)
+            self.do_heatmap_stuff(msx, msy)
             self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
         return task.again
 
@@ -912,6 +914,7 @@ class PC1(DirectObject):
                     self.common['shadowNode'].setZ(2.7)
         pos2d=Point3(gazePos[0], 0, gazePos[1])
         self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
+        self.do_heatmap_stuff(gazePos[0], gazePos[1])
 
         # Handle left/right eye closing
         if not eye_status[0] and not eye_status[1]:
