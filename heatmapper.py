@@ -50,9 +50,9 @@ class Heatmapper:
         return kernel / np.sum(kernel)
 
     def generate_heatmap_for_frame(self, frame_n):
-        hm_start = frame_n #- self.frame_every_points
-        # if hm_start < 0:
-        #     hm_start = 0
+        hm_start = frame_n -100#- self.frame_every_points
+        if hm_start < 0:
+            hm_start = 0
         hm_end = frame_n + self.frame_every_points
         if hm_end >= len(self.full_history):
             hm_end = len(self.full_history) - 1

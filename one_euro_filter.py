@@ -56,7 +56,10 @@ class OneEuroFilter(object):
     def __call__(self, x, timestamp=None):
         # ---- update the sampling frequency based on timestamps
         if self.__lasttime and timestamp:
-            self.__freq = 1.0 / (timestamp - self.__lasttime)
+            try:
+                self.__freq = 1.0 / (timestamp - self.__lasttime)
+            except:
+                self.__freq = 0.001
         self.__lasttime = timestamp
         # ---- estimate the current variation per second
         prev_x = self.__x.lastValue()

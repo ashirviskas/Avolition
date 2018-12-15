@@ -2237,6 +2237,13 @@ class PC3(DirectObject):
             #base.bufferViewer.setPosition("ulcorner")
             #base.bufferViewer.setCardSize(.5, 0.0)
     def __init__(self, common):
+        self.right_open = False
+        self.left_open = False
+        self.GAI = GazeInterface()
+        self.common = common
+        self.hm = Heatmapper()
+        self.cursor_pinged = 0
+        self.save = True
         self.common=common
         self.black=common['map_black']
         self.walls=common['map_walls']
@@ -2670,11 +2677,90 @@ class PC3(DirectObject):
 
         self.accept( 'window-event', self.windowEventHandler)
         self.accept("escape",self.optionsSet, ['close'])
-
+        if self.common["eye_enabled"]:
+            self._tracker = GazeInterface.connect()
+            self.accept("eyeClosed", self.handleEyeClosed)
+            taskMgr.add(self.__getTrackerInfo, "chargenTrackerInfo")
         #taskMgr.add(self.__getMousePos, "mousePosTask")
         taskMgr.add(self.update, "updatePC")
+        taskMgr.add(self.__getTrackerInfo, "getTrackerPos")
         taskMgr.doMethodLater(0.05, self.run_task,'run_task')
         taskMgr.doMethodLater(0.05, self.bow_task,'bow_task')
+
+
+
+    def __getTrackerInfo(self, task):
+        ef = GazeInterface.getLastFrame(self._tracker)
+        eye_status = GazeInterface.getEyeVisibility(ef)
+        gazePos1 = GazeInterface.frameToPoint2(ef)
+        gazePos = GazeInterface.reduceNoise(gazePos1)
+        # self.hm.add_point(gazePos)
+
+        pos3d = Point3()
+        nearPoint = Point3()
+        farPoint = Point3()
+        base.camLens.extrude(gazePos, nearPoint, farPoint)
+        if self.plane.intersectsLine(pos3d, render.getRelativePoint(camera, nearPoint),render.getRelativePoint(camera, farPoint)):
+            #if .camera_momentum==0:
+            if self.HP is not None and self.HP>0:
+                self.node.headsUp(pos3d)
+            self.pLightNode.setPos(pos3d)
+            self.pLightNode.setZ(2.7)
+            if not self.common['safemode']:
+                if self.node.getDistance(self.pLightNode)<13.0:
+                    self.common['shadowNode'].setPos(self.pLightNode.getPos(render))
+                    self.common['shadowNode'].setZ(2.7)
+        pos2d=Point3(gazePos[0], 0, gazePos[1])
+        self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
+        self.do_heatmap_stuff(gazePos[0], gazePos[1])
+
+        # Handle left/right eye closing
+        if not eye_status[0] and not eye_status[1]:
+        #   Both eyes not visible
+        #   Maybe display error?
+            pass
+        else:
+            if not self.left_open == eye_status[0]:
+                messenger.send('eyeClosed', [1, not eye_status[0]])
+            if not self.right_open == eye_status[1]:
+                messenger.send('eyeClosed', [2, not eye_status[1]])
+
+        self.left_open = eye_status[0]
+        self.right_open = eye_status[1]
+
+        return task.again
+
+    def do_heatmap_stuff(self, msx, msy):
+        pos_arr = [int(abs((msy - 1) / 2) * 1079), int(((msx + 1) / 2) * 1919)]
+        print(msx)
+        if pos_arr[0] is not None and pos_arr[1] is not None and self.save:
+            self.hm.add_point(pos_arr)
+            if self.cursor_pinged > 20:
+                self.cursor_pinged = 0
+            if self.cursor_pinged == 0:
+                screenshot = base.win.getScreenshot()
+                im_format = screenshot.getRamImage()
+                image = np.frombuffer(im_format, np.uint8)  # use data.get_data() instead of data in python 2
+                image.shape = (screenshot.getYSize(), screenshot.getXSize(), screenshot.getNumComponents())
+                image = np.flipud(image)[:, :, :3]
+                self.hm.add_frame(image)
+            self.cursor_pinged += 1
+
+    def handleEyeClosed(self, eye, status):
+        closed_name = "left_eye" if eye == 1 else "right_eye"
+        action_name = "-up" if not status else ""
+        event_name = closed_name+action_name
+        messenger.send(event_name)
+
+        if self.common['keymap']["key_action1"][1] == closed_name:
+            self.handleMenu()
+
+    def handleMenu(self):
+        if self.cursorInside(self.options_exit):
+            self.optionsSet('exit')
+
+    def cursorInside(self, frame):
+        return PandaHelper.targetInsideFrame(self.cursor, frame)
 
     def optionsSet(self, opt, event=None):
         if opt!="close" and opt!="audio" and opt!="music":
@@ -2764,6 +2850,9 @@ class PC3(DirectObject):
         self.HP-=damage
         #print self.HP
         if self.HP<=0:
+            if self.save:
+                self.hm.generate_video()
+                self.save = False
             if(self.actor.getCurrentAnim()!="die"):
                 self.actor.play("die")
                 self.sounds["walk"].stop()
@@ -2902,6 +2991,8 @@ class PC3(DirectObject):
             newPos = pixel2d.getRelativePoint(render2d, r2d)
             base.win.movePointer(0,int(newPos[0]),-int(newPos[2]))
 
+
+
     def bow_task(self, task):
         if self.HP<=0:
             return task.done
@@ -2914,7 +3005,7 @@ class PC3(DirectObject):
                 if self.autoCamera and not self.pauseCamera and not self.isOptionsOpen:
                     if abs(self.cameraNode.getH()-self.node.getH())>90.0:
                         reset_pos=self.lastPos3d
-                        Sequence(LerpHprInterval(self.cameraNode, 0.2, self.node.getHpr()),Func(self.resetPointer,reset_pos)).start()
+                        Sequence(LerpHprInterval(self.cameraNode, 0.2, self.node.getHpr())).start()
                 self.actor.play("arm")
                 self.sounds["arm"].play()
                 if self.sounds["walk"].status() == self.sounds["walk"].PLAYING:
@@ -3153,7 +3244,10 @@ class PC3(DirectObject):
 
     def destroy(self):
         self.common['levelLoader'].unload(True)
-
+        if taskMgr.hasTaskNamed("mousePosTask"):
+            taskMgr.remove("mousePosTask")
+        if taskMgr.hasTaskNamed("chargenTrackerInfo"):
+            taskMgr.remove("chargenTrackerInfo")
         if taskMgr.hasTaskNamed("mousePosTask"):
             taskMgr.remove("mousePosTask")
         if taskMgr.hasTaskNamed("updatePC"):
@@ -3222,6 +3316,7 @@ class PC3(DirectObject):
         self.node.setPos(0,0,0)
         self.common['player_node']=self.node
         self.common['CharGen'].load()
+        GazeInterface.close(self._tracker)
 
 class PC4(DirectObject):
     def onLevelLoad(self, common):
@@ -3269,6 +3364,12 @@ class PC4(DirectObject):
             #base.bufferViewer.setPosition("ulcorner")
             #base.bufferViewer.setCardSize(.5, 0.0)
     def __init__(self, common):
+        self.right_open = False
+        self.left_open = False
+        self.GAI = GazeInterface()
+        self.hm = Heatmapper()
+        self.cursor_pinged = 0
+        self.save = True
         self.common=common
         self.black=common['map_black']
         self.walls=common['map_walls']
@@ -3714,6 +3815,11 @@ class PC4(DirectObject):
         self.accept("escape",self.optionsSet, ['close'])
 
         #taskMgr.add(self.__getMousePos, "mousePosTask")
+        if self.common["eye_enabled"]:
+            self._tracker = GazeInterface.connect()
+            self.accept("eyeClosed", self.handleEyeClosed)
+            taskMgr.add(self.__getTrackerInfo, "chargenTrackerInfo")
+        taskMgr.add(self.__getTrackerInfo, "getTrackerPos")
         taskMgr.add(self.update, "updatePC")
         taskMgr.doMethodLater(0.05+self.teleportTime, self.teleport_task,'teleport_task')
         taskMgr.doMethodLater(0.05, self.magma_task,'magma_task')
@@ -3799,6 +3905,80 @@ class PC4(DirectObject):
         base.camera.setZ(base.camera, -t/2.5)
         base.camera.setP(base.camera, t*2.0)
 
+    def __getTrackerInfo(self, task):
+        ef = GazeInterface.getLastFrame(self._tracker)
+        eye_status = GazeInterface.getEyeVisibility(ef)
+        gazePos1 = GazeInterface.frameToPoint2(ef)
+        gazePos = GazeInterface.reduceNoise(gazePos1)
+        # self.hm.add_point(gazePos)
+
+        pos3d = Point3()
+        nearPoint = Point3()
+        farPoint = Point3()
+        base.camLens.extrude(gazePos, nearPoint, farPoint)
+        if self.plane.intersectsLine(pos3d, render.getRelativePoint(camera, nearPoint),
+                                     render.getRelativePoint(camera, farPoint)):
+            # if .camera_momentum==0:
+            if self.HP is not None and self.HP > 0:
+                self.node.headsUp(pos3d)
+            self.pLightNode.setPos(pos3d)
+            self.pLightNode.setZ(2.7)
+            if not self.common['safemode']:
+                if self.node.getDistance(self.pLightNode) < 13.0:
+                    self.common['shadowNode'].setPos(self.pLightNode.getPos(render))
+                    self.common['shadowNode'].setZ(2.7)
+        pos2d = Point3(gazePos[0], 0, gazePos[1])
+        self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
+        self.do_heatmap_stuff(gazePos[0], gazePos[1])
+
+        # Handle left/right eye closing
+        if not eye_status[0] and not eye_status[1]:
+            #   Both eyes not visible
+            #   Maybe display error?
+            pass
+        else:
+            if not self.left_open == eye_status[0]:
+                messenger.send('eyeClosed', [1, not eye_status[0]])
+            if not self.right_open == eye_status[1]:
+                messenger.send('eyeClosed', [2, not eye_status[1]])
+
+        self.left_open = eye_status[0]
+        self.right_open = eye_status[1]
+
+        return task.again
+
+    def do_heatmap_stuff(self, msx, msy):
+        pos_arr = [int(abs((msy - 1) / 2) * 1079), int(((msx + 1) / 2) * 1919)]
+        print(msx)
+        if pos_arr[0] is not None and pos_arr[1] is not None and self.save:
+            self.hm.add_point(pos_arr)
+            if self.cursor_pinged > 20:
+                self.cursor_pinged = 0
+            if self.cursor_pinged == 0:
+                screenshot = base.win.getScreenshot()
+                im_format = screenshot.getRamImage()
+                image = np.frombuffer(im_format, np.uint8)  # use data.get_data() instead of data in python 2
+                image.shape = (screenshot.getYSize(), screenshot.getXSize(), screenshot.getNumComponents())
+                image = np.flipud(image)[:, :, :3]
+                self.hm.add_frame(image)
+            self.cursor_pinged += 1
+
+    def handleEyeClosed(self, eye, status):
+        closed_name = "left_eye" if eye == 1 else "right_eye"
+        action_name = "-up" if not status else ""
+        event_name = closed_name + action_name
+        messenger.send(event_name)
+
+        if self.common['keymap']["key_action1"][1] == closed_name:
+            self.handleMenu()
+
+    def handleMenu(self):
+        if self.cursorInside(self.options_exit):
+            self.optionsSet('exit')
+
+    def cursorInside(self, frame):
+        return PandaHelper.targetInsideFrame(self.cursor, frame)
+
     def hit(self, damage):
         #print "hit"
         self.sounds[random.choice(["pain1", "pain2"])].play()
@@ -3808,6 +3988,9 @@ class PC4(DirectObject):
         self.HP-=damage
         #print self.HP
         if self.HP<=0:
+            if self.save:
+                self.hm.generate_video()
+                self.save = False
             if(self.actor.getCurrentAnim()!="die"):
                 self.actor.play("die")
                 self.sounds["walk"].stop()
@@ -4201,8 +4384,11 @@ class PC4(DirectObject):
                 self.options.setPos(210+winX,0,-128+84) 
                 
     def destroy(self): 
-        self.common['levelLoader'].unload(True)      
-    
+        self.common['levelLoader'].unload(True)
+        if taskMgr.hasTaskNamed("mousePosTask"):
+            taskMgr.remove("mousePosTask")
+        if taskMgr.hasTaskNamed("chargenTrackerInfo"):
+            taskMgr.remove("chargenTrackerInfo")
         if taskMgr.hasTaskNamed("mousePosTask"):
             taskMgr.remove("mousePosTask")
         if taskMgr.hasTaskNamed("updatePC"):
@@ -4270,4 +4456,5 @@ class PC4(DirectObject):
         self.node.setPos(0,0,0)
         self.common['player_node']=self.node
         self.common['CharGen'].load()
+        GazeInterface.close(self._tracker)
                 
