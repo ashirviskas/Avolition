@@ -528,7 +528,8 @@ class CharGen(DirectObject):
             taskMgr.remove('chargenMousePos')
         if taskMgr.hasTaskNamed('chargenTrackerInfo'):
             taskMgr.remove('chargenTrackerInfo')
-        GazeInterface.close(self._tracker)
+        if self.common["eye_enabled"]:
+            GazeInterface.close(self._tracker)
 
         self.common['traverser'].removeCollider(self.pickerNP)
         self.pickerNP.removeNode() 
