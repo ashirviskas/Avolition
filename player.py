@@ -886,7 +886,7 @@ class PC1(DirectObject):
                         self.common['shadowNode'].setZ(2.7)
             msx = base.mouseWatcherNode.getMouseX()
             msy = base.mouseWatcherNode.getMouseY()
-            # self.do_heatmap_stuff(msx, msy)
+            self.do_heatmap_stuff(msx, msy)
             pos2d=Point3(msx, 0, msy)
             self.cursor.setPos(pixel2d.getRelativePoint(render2d, pos2d))
         return task.again

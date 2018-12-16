@@ -2,10 +2,13 @@ import numpy as np
 from scipy import ndimage
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
+from matplotlib import colors
 from pylab import *
 import time
 # import cv2
 import scipy.stats as st
+from multiprocessing import Process
+
 
 
 class Heatmapper:
@@ -80,14 +83,14 @@ class Heatmapper:
             print(p)
             print(x_p)
             print(y_p)
-            heatmap[y_p - 30: y_p + 30, x_p - 30: x_p + 30,] += blur
+            heatmap[y_p - 30: y_p + 30, x_p - 30: x_p + 30] += blur
         # img = ndimage.filters.gaussian_filter(heatmap, sigma=15)*500
         # img = cv2.GaussianBlur(heatmap, (5, 5), 16)
         # img = self.vectorized_RBF_kernel(heatmap, 16)
 
         return heatmap
 
-    def generate_video(self):
+    def generate_video_process(self):
         fig = plt.figure()
         ax = fig.add_subplot(211)
         ax.set_aspect('equal')
@@ -100,7 +103,10 @@ class Heatmapper:
 
         im = ax.imshow(self.generate_heatmap_for_frame(0))
         im.set_clim([0, 1])
-        imm = ax_game.imshow(self.get_gameframe_for_frame(0))
+        game_frame = np.array(self.get_gameframe_for_frame(0))
+        game_frame[:, 0], game_frame[:, 2] = game_frame[:, 2], game_frame[:, 0].copy()
+
+        imm = ax_game.imshow(game_frame)
         imm.set_clim([0, 1])
         fig.set_size_inches([5, 5])
         # Setting tight layout for pyplot
@@ -108,18 +114,23 @@ class Heatmapper:
 
         def update_img(n):
             tmp = self.generate_heatmap_for_frame(n)
-            tmp_gm = self.get_gameframe_for_frame(n)
+            tmp_gm = np.array(self.get_gameframe_for_frame(n))
+            tmp_gm[:, 0], tmp_gm[:, 2] = tmp_gm[:, 2], tmp_gm[:, 0].copy()
             im.set_data(tmp)
             imm.set_data(tmp_gm)
             return [im, imm]
 
-        #legend(loc=0)
-        ani = animation.FuncAnimation(fig, update_img, len(self.history)-3, interval=1)
+        # legend(loc=0)
+        ani = animation.FuncAnimation(fig, update_img, len(self.history) - 3, interval=1)
         writer = animation.writers['ffmpeg'](fps=60)
 
         ani.save('heatmap.mp4', writer=writer, dpi=100)
         print("Heatmap saved to heatmap.mp4")
         return ani
+
+    def generate_video(self):
+        p = Process(target=self.generate_video_process)
+        p.start()
 
 
 if __name__ == "__main__":
