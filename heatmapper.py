@@ -52,45 +52,40 @@ class Heatmapper:
 
         return kernel / np.sum(kernel)
 
-    def generate_heatmap_for_frame(self, frame_n):
+    def generate_heatmap_for_frame(self, frame_n, blur):
         hm_start = frame_n -100#- self.frame_every_points
         if hm_start < 0:
             hm_start = 0
         hm_end = frame_n + self.frame_every_points
-        if hm_end >= len(self.full_history):
-            hm_end = len(self.full_history) - 1
+        if hm_end >= len(self.history):
+            hm_end = len(self.history) - 1
         elif hm_end == self.frame_every_points:
             hm_end = self.frame_every_points * 2
-        blur_kernel = self.gkern(60, 10) * 300
+
         # print(blur_kernel)
-        blur = np.array(blur_kernel)
+
+        print(blur.shape)
         heatmap = np.zeros(self.full_history.shape, dtype=np.float)
 
-        for i in range(hm_start, hm_end + 1):
-            if i >= len(self.history):
-                break
-            p = self.history[i]
-            x_p = p[1]
-            y_p = p[0]
-            if x_p < 31:
-                x_p = 31
-            if x_p > 1887:
-                x_p = 1887
-            if y_p < 31:
-                y_p = 31
-            if y_p > 1047:
-                y_p = 1047
-            print(p)
-            print(x_p)
-            print(y_p)
-            heatmap[y_p - 30: y_p + 30, x_p - 30: x_p + 30] += blur
-        # img = ndimage.filters.gaussian_filter(heatmap, sigma=15)*500
-        # img = cv2.GaussianBlur(heatmap, (5, 5), 16)
-        # img = self.vectorized_RBF_kernel(heatmap, 16)
-
+        put_indexes = self.history[hm_start:hm_end, :]
+        put_indexes_l = put_indexes - 30
+        put_indexes_h = put_indexes + 30
+        # put_indexes_hl = np.vstack([put_indexes_l[:, 0].T, put_indexes_h[:, 0].T, put_indexes_l[:, 1].T, put_indexes_h[:, 1].T]).T
+        # heatmap[put_indexes_l[:, 0]:put_indexes_h[:, 0], put_indexes_l[:, 1]:put_indexes_h[:, 1]] += blur
+        # put_indexes_hl = np.zeros((hm_end - hm_start, 2, 60), dtype=np.uint16)
+        # for i in range(len(put_indexes)):
+        #     put_indexes_hl[i, 0, :] = np.arange(put_indexes[i, 0]-30, put_indexes[i, 0] + 30)
+        #     put_indexes_hl[i, 1, :] = np.arange(put_indexes[i, 1]-30, put_indexes[i, 1] + 30)
+        # # heatmap = np.tile(heatmap, (len(put_indexes), 1, 1))
+        # heatmap[:, put_indexes_hl[:, 0, :], put_indexes_hl[:, 1, :]] += np.array([blur]*len(put_indexes))
+        # heatmap = np.sum(heatmap, axis=0)
+        # print(heatmap)
+        for i in range(len(put_indexes)):
+            heatmap[put_indexes_l[i, 0]:put_indexes_h[i, 0], put_indexes_l[i, 1]:put_indexes_h[i, 1]] += blur
         return heatmap
 
     def generate_video_process(self):
+        stt = time.time()
         fig = plt.figure()
         ax = fig.add_subplot(211)
         ax.set_aspect('equal')
@@ -101,19 +96,26 @@ class Heatmapper:
         ax_game.get_xaxis().set_visible(False)
         ax_game.get_yaxis().set_visible(False)
 
-        im = ax.imshow(self.generate_heatmap_for_frame(0))
+        self.history = np.array(self.history)
+        self.history = np.clip(self.history, 31, 1887)
+        self.history[:, 0] = np.clip(self.history[:, 0], 31, 1047)
+
+        blur_kernel = self.gkern(60, 10) * 300
+        blur = np.array(blur_kernel)
+
+        im = ax.imshow(self.generate_heatmap_for_frame(0, blur))
         im.set_clim([0, 1])
         game_frame = np.array(self.get_gameframe_for_frame(0))
         game_frame[:, 0], game_frame[:, 2] = game_frame[:, 2], game_frame[:, 0].copy()
 
         imm = ax_game.imshow(game_frame)
         imm.set_clim([0, 1])
-        fig.set_size_inches([5, 5])
+        fig.set_size_inches([8, 8])
         # Setting tight layout for pyplot
         tight_layout()
 
         def update_img(n):
-            tmp = self.generate_heatmap_for_frame(n)
+            tmp = self.generate_heatmap_for_frame(n, blur)
             tmp_gm = np.array(self.get_gameframe_for_frame(n))
             tmp_gm[:, 0], tmp_gm[:, 2] = tmp_gm[:, 2], tmp_gm[:, 0].copy()
             im.set_data(tmp)
@@ -122,13 +124,19 @@ class Heatmapper:
 
         # legend(loc=0)
         ani = animation.FuncAnimation(fig, update_img, len(self.history) - 3, interval=1)
-        writer = animation.writers['ffmpeg'](fps=60)
+        writer = animation.writers['ffmpeg'](fps=50)
 
-        ani.save('heatmap.mp4', writer=writer, dpi=100)
+        ani.save('heatmap.mp4', writer=writer, dpi=45)
         print("Heatmap saved to heatmap.mp4")
+        se = time.time()
+        print(se - stt)
         return ani
 
+
+
+
     def generate_video(self):
+
         p = Process(target=self.generate_video_process)
         p.start()
 
@@ -145,8 +153,7 @@ if __name__ == "__main__":
         f = np.random.rand(1080, 1920)
         hm.add_frame(f)
     # hm.generate_fulll_history_heatmap()
-    stt = time.time()
+
     hm.generate_video()
-    se = time.time()
-    print(se-stt)
+
 
